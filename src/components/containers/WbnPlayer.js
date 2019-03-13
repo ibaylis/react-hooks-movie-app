@@ -3,6 +3,7 @@ import { ThemeProvider } from 'styled-components';
 import Video from '../Video';
 import Playlist from '../containers/Playlist';
 import StyeledWbnPlayer from '../styles/StyledWbnPlayer';
+import { element } from 'prop-types';
 
 const theme = {
     bgcolor: "#353535",
@@ -27,15 +28,23 @@ const themeLight = {
 const WbnPlayer = (props) => {
 
     const videos = JSON.parse(document.querySelector('[name="videos"]').value);
+    const savedState = JSON.parse(localStorage.getItem(`${videos.playlistId}`));
 
     const [state, setState] = useState({
-        videos: videos.playlist,
-        activeVideo: videos.playlist[0],
-        nightMode: true,
-        playlistId: videos.playlistId,
+        videos: savedState ? savedState.videos : videos.playlist,
+        activeVideo: savedState ? savedState.activeVideo : videos.playlist[0],
+        nightMode:  savedState ? savedState.nightMode : true,
+        playlistId:  savedState ? savedState.playlistId : videos.playlistId,
         autoplay: false
     });
-    
+
+    useEffect(
+        () => {
+            localStorage.setItem(`${state.playlistId}`, JSON.stringify({ ...state }));
+        },
+        [state]
+    )
+
     useEffect(
         () => {
             const videoId = props.match.params.activeVideo;
@@ -58,17 +67,35 @@ const WbnPlayer = (props) => {
         [props.match.params.activeVideo]
     )
 
-
     const nightModeCallback = () => {
-
+        setState(prevState => ({ ...prevState, nightMode: !state.nightMode }))
     }
 
     const endCallback = () => {
-        
-    }
+        const videoId = props.match.params.activeVideo;
+        const currentVideoIndex = state.videos.findIndex(
+            video => video.id === videoId
+        );
 
-    const progressCallback = () => {
-        
+        const nextVideo = currentVideoIndex === state.videos.length - 1 ? 0 : currentVideoIndex + 1;
+
+        props.history.push({
+            pathname: `${state.videos[nextVideo].id}`,
+            autoplay: false
+        });
+    };
+
+    const progressCallback = (e) => {
+        if(e.playedSeconds > 10 && e.playedSeconds < 11) {
+            setState({
+                ...state,
+                videos: state.videos.map(
+                    element => {
+                        return element.id === state.activeVideo.id ? { ...element, played: true } : element;
+                    }
+                )
+            })
+        }
     }
 
     return (
